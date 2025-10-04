@@ -1,12 +1,22 @@
-from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QTableWidget, QPushButton, QLabel, QLineEdit, QGridLayout
+from PySide6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
+                             QTableWidget, QPushButton, QLabel, QLineEdit, QGridLayout,
+                             QMessageBox, QTableWidgetItem, QComboBox)
 from PySide6.QtCore import Qt
 from core.localization import get_text
+from core.database import get_db
+from services.customer_service import CustomerService
+from models.customer import CustomerType, TransactionType
+from datetime import datetime
 
 class CustomerModule(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle(get_text("customer_module.title"))
-        self.setMinimumSize(800, 600)
+        self.setMinimumSize(1000, 700)
+        
+        # Initialize database service
+        db = next(get_db())
+        self.customer_service = CustomerService(db)
         
         # Create central widget and main layout
         central_widget = QWidget()
@@ -18,7 +28,7 @@ class CustomerModule(QMainWindow):
         
         # Add form fields
         labels = [
-            ("customer_module.customer_name", "customer_name"),
+            ("customer_module.customer_name", "name"),
             ("customer_module.tax_number", "tax_number"),
             ("customer_module.phone", "phone"),
             ("customer_module.address", "address")
@@ -30,19 +40,52 @@ class CustomerModule(QMainWindow):
             self.inputs[input_key] = QLineEdit()
             form_layout.addWidget(self.inputs[input_key], i, 1)
         
-        # Add buttons
-        button_layout = QHBoxLayout()
-        buttons = [
+        # Add customer type combo box
+        form_layout.addWidget(QLabel(get_text("customer_module.type")), len(labels), 0)
+        self.type_combo = QComboBox()
+        self.type_combo.addItems([
+            get_text("customer_module.type_customer"),
+            get_text("customer_module.type_supplier"),
+            get_text("customer_module.type_both")
+        ])
+        form_layout.addWidget(self.type_combo, len(labels), 1)
+        
+        # Add transaction fields
+        transaction_layout = QHBoxLayout()
+        self.amount_input = QLineEdit()
+        self.amount_input.setPlaceholderText(get_text("customer_module.amount"))
+        
+        self.description_input = QLineEdit()
+        self.description_input.setPlaceholderText(get_text("customer_module.description"))
+        
+        self.transaction_type_combo = QComboBox()
+        self.transaction_type_combo.addItems([
+            get_text("customer_module.debit"),
+            get_text("customer_module.credit")
+        ])
+        
+        transaction_layout.addWidget(self.amount_input)
+        transaction_layout.addWidget(self.description_input)
+        transaction_layout.addWidget(self.transaction_type_combo)
+        
+        # Add customer buttons
+        customer_button_layout = QHBoxLayout()
+        customer_buttons = [
             ("common.add", self.add_customer),
             ("common.update", self.update_customer),
             ("common.delete", self.delete_customer),
             ("common.clear", self.clear_form)
         ]
         
-        for text_key, slot in buttons:
+        for text_key, slot in customer_buttons:
             button = QPushButton(get_text(text_key))
             button.clicked.connect(slot)
-            button_layout.addWidget(button)
+            customer_button_layout.addWidget(button)
+            
+        # Add transaction button
+        transaction_button = QPushButton(get_text("customer_module.add_transaction"))
+        transaction_button.clicked.connect(self.add_transaction)
+        transaction_layout.addWidget(transaction_button)
         
         # Add table widget for transactions
         self.table = QTableWidget()
@@ -55,10 +98,20 @@ class CustomerModule(QMainWindow):
             get_text("customer_module.credit")
         ])
         
+        # Add customer info summary
+        self.balance_label = QLabel()
+        self.update_balance_display(0, 0)
+        
         # Add layouts to main layout
         main_layout.addLayout(form_layout)
-        main_layout.addLayout(button_layout)
+        main_layout.addLayout(customer_button_layout)
+        main_layout.addWidget(self.balance_label)
+        main_layout.addLayout(transaction_layout)
         main_layout.addWidget(self.table)
+        
+        # Initialize state
+        self.current_customer_id = None
+        self.load_customers()
         
         # Set modern style
         self.setStyleSheet("""
