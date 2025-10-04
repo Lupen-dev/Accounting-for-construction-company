@@ -1,0 +1,13 @@
+{
+    "app_name": "Construction Accounting System",
+    "menu": {
+        "customers": "Accounts",
+        "cheques": "Cheques/Bills",
+        "employees": "Employees",
+        "properties": "Properties/Deeds",
+        "payments": "Payments",
+        "trade": "Trade",
+        "reports": "Reports",
+        "settings": "Settings"
+    }
+}

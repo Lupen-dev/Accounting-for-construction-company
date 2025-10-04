@@ -1,0 +1,13 @@
+{
+    "app_name": "Sistem Akuntansi Konstruksi",
+    "menu": {
+        "customers": "Akun",
+        "cheques": "Cek/Tagihan",
+        "employees": "Karyawan",
+        "properties": "Properti/Sertifikat",
+        "payments": "Pembayaran",
+        "trade": "Perdagangan",
+        "reports": "Laporan",
+        "settings": "Pengaturan"
+    }
+}

@@ -1,0 +1,13 @@
+{
+    "app_name": "İnşaat Muhasebe Sistemi",
+    "menu": {
+        "customers": "Cari Hesaplar",
+        "cheques": "Çek/Senet",
+        "employees": "Personel",
+        "properties": "Tapu/Taşınmaz",
+        "payments": "Taksit/Ödeme",
+        "trade": "Ticaret",
+        "reports": "Raporlar",
+        "settings": "Ayarlar"
+    }
+}

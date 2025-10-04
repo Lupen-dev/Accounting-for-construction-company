@@ -1,0 +1,38 @@
+# Python bytecode files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+env/
+ENV/
+
+# IDE specific files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Database files
+*.db
+*.sqlite3
+
+# Environment variables
+.env
+
+# Log files
+logs/
+*.log
+
+# Backup files
+backups/
+
+# Export files
+exports/
+*.xlsx
+*.pdf
+
+# Temp files
+*.tmp
+.DS_Store
