@@ -151,18 +151,271 @@ class CustomerModule(QMainWindow):
         """)
     
     def add_customer(self):
-        # TODO: Implement customer addition
-        pass
+        try:
+            # Get input values
+            customer_data = {
+                key: input.text().strip()
+                for key, input in self.inputs.items()
+            }
+            
+            # Validate inputs
+            if not all(customer_data.values()):
+                QMessageBox.warning(
+                    self,
+                    get_text("common.warning"),
+                    get_text("customer_module.fill_all_fields")
+                )
+                return
+            
+            # Get customer type
+            type_index = self.type_combo.currentIndex()
+            customer_type = [CustomerType.CUSTOMER, CustomerType.SUPPLIER, CustomerType.BOTH][type_index]
+            
+            # Create customer
+            customer = self.customer_service.create_customer(
+                name=customer_data["name"],
+                tax_number=customer_data["tax_number"],
+                phone=customer_data["phone"],
+                address=customer_data["address"],
+                type=customer_type
+            )
+            
+            QMessageBox.information(
+                self,
+                get_text("common.success"),
+                get_text("customer_module.customer_added")
+            )
+            
+            self.clear_form()
+            self.load_customers()
+            
+        except Exception as e:
+            QMessageBox.critical(
+                self,
+                get_text("common.error"),
+                str(e)
+            )
     
     def update_customer(self):
-        # TODO: Implement customer update
-        pass
+        if not self.current_customer_id:
+            QMessageBox.warning(
+                self,
+                get_text("common.warning"),
+                get_text("customer_module.select_customer")
+            )
+            return
+        
+        try:
+            # Get input values
+            customer_data = {
+                key: input.text().strip()
+                for key, input in self.inputs.items()
+            }
+            
+            # Validate inputs
+            if not all(customer_data.values()):
+                QMessageBox.warning(
+                    self,
+                    get_text("common.warning"),
+                    get_text("customer_module.fill_all_fields")
+                )
+                return
+            
+            # Get customer type
+            type_index = self.type_combo.currentIndex()
+            customer_type = [CustomerType.CUSTOMER, CustomerType.SUPPLIER, CustomerType.BOTH][type_index]
+            
+            # Update customer
+            customer = self.customer_service.update_customer(
+                customer_id=self.current_customer_id,
+                name=customer_data["name"],
+                tax_number=customer_data["tax_number"],
+                phone=customer_data["phone"],
+                address=customer_data["address"],
+                type=customer_type
+            )
+            
+            if customer:
+                QMessageBox.information(
+                    self,
+                    get_text("common.success"),
+                    get_text("customer_module.customer_updated")
+                )
+                self.load_customers()
+            
+        except Exception as e:
+            QMessageBox.critical(
+                self,
+                get_text("common.error"),
+                str(e)
+            )
     
     def delete_customer(self):
-        # TODO: Implement customer deletion
-        pass
+        if not self.current_customer_id:
+            QMessageBox.warning(
+                self,
+                get_text("common.warning"),
+                get_text("customer_module.select_customer")
+            )
+            return
+        
+        reply = QMessageBox.question(
+            self,
+            get_text("common.confirm"),
+            get_text("customer_module.confirm_delete"),
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+        
+        if reply == QMessageBox.Yes:
+            try:
+                if self.customer_service.delete_customer(self.current_customer_id):
+                    QMessageBox.information(
+                        self,
+                        get_text("common.success"),
+                        get_text("customer_module.customer_deleted")
+                    )
+                    self.clear_form()
+                    self.load_customers()
+                    self.current_customer_id = None
+            
+            except Exception as e:
+                QMessageBox.critical(
+                    self,
+                    get_text("common.error"),
+                    str(e)
+                )
     
     def clear_form(self):
         # Clear all input fields
         for input_field in self.inputs.values():
             input_field.clear()
+        self.type_combo.setCurrentIndex(0)
+        self.current_customer_id = None
+        self.update_balance_display(0, 0)
+        self.table.setRowCount(0)
+    
+    def load_customers(self):
+        try:
+            customers = self.customer_service.get_customers()
+            self.table.setRowCount(0)
+            
+            for customer in customers:
+                balance = self.customer_service.get_customer_balance(customer.id)
+                row = self.table.rowCount()
+                self.table.insertRow(row)
+                
+                self.table.setItem(row, 0, QTableWidgetItem(customer.name))
+                self.table.setItem(row, 1, QTableWidgetItem(customer.tax_number))
+                self.table.setItem(row, 2, QTableWidgetItem(f"{balance.total_debit:.2f}" if balance else "0.00"))
+                self.table.setItem(row, 3, QTableWidgetItem(f"{balance.total_credit:.2f}" if balance else "0.00"))
+                self.table.setItem(row, 4, QTableWidgetItem(
+                    f"{balance.total_credit - balance.total_debit:.2f}" if balance else "0.00"
+                ))
+        
+        except Exception as e:
+            QMessageBox.critical(
+                self,
+                get_text("common.error"),
+                str(e)
+            )
+    
+    def add_transaction(self):
+        if not self.current_customer_id:
+            QMessageBox.warning(
+                self,
+                get_text("common.warning"),
+                get_text("customer_module.select_customer")
+            )
+            return
+        
+        try:
+            amount_text = self.amount_input.text().strip()
+            description = self.description_input.text().strip()
+            
+            if not amount_text or not description:
+                QMessageBox.warning(
+                    self,
+                    get_text("common.warning"),
+                    get_text("customer_module.fill_transaction_fields")
+                )
+                return
+            
+            try:
+                amount = float(amount_text)
+            except ValueError:
+                QMessageBox.warning(
+                    self,
+                    get_text("common.warning"),
+                    get_text("customer_module.invalid_amount")
+                )
+                return
+            
+            transaction_type = TransactionType.DEBIT if self.transaction_type_combo.currentIndex() == 0 else TransactionType.CREDIT
+            
+            transaction = self.customer_service.add_transaction(
+                customer_id=self.current_customer_id,
+                type=transaction_type,
+                amount=amount,
+                description=description
+            )
+            
+            if transaction:
+                self.amount_input.clear()
+                self.description_input.clear()
+                self.load_transactions()
+                self.load_customers()
+        
+        except Exception as e:
+            QMessageBox.critical(
+                self,
+                get_text("common.error"),
+                str(e)
+            )
+    
+    def load_transactions(self):
+        if not self.current_customer_id:
+            return
+        
+        try:
+            transactions = self.customer_service.get_customer_transactions(self.current_customer_id)
+            balance = self.customer_service.get_customer_balance(self.current_customer_id)
+            
+            self.table.setRowCount(0)
+            for transaction in transactions:
+                row = self.table.rowCount()
+                self.table.insertRow(row)
+                
+                self.table.setItem(row, 0, QTableWidgetItem(transaction.date.strftime("%Y-%m-%d %H:%M")))
+                self.table.setItem(row, 1, QTableWidgetItem(get_text(f"customer_module.{transaction.type.value}")))
+                self.table.setItem(row, 2, QTableWidgetItem(transaction.description))
+                
+                if transaction.type == TransactionType.DEBIT:
+                    self.table.setItem(row, 3, QTableWidgetItem(f"{transaction.amount:.2f}"))
+                    self.table.setItem(row, 4, QTableWidgetItem(""))
+                else:
+                    self.table.setItem(row, 3, QTableWidgetItem(""))
+                    self.table.setItem(row, 4, QTableWidgetItem(f"{transaction.amount:.2f}"))
+            
+            if balance:
+                self.update_balance_display(balance.total_debit, balance.total_credit)
+        
+        except Exception as e:
+            QMessageBox.critical(
+                self,
+                get_text("common.error"),
+                str(e)
+            )
+    
+    def update_balance_display(self, total_debit: float, total_credit: float):
+        net_balance = total_credit - total_debit
+        balance_text = f"Toplam Borç: {total_debit:.2f} | Toplam Alacak: {total_credit:.2f} | Net Bakiye: {net_balance:.2f}"
+        self.balance_label.setText(balance_text)
+        
+        # Set color based on balance
+        if net_balance < 0:
+            self.balance_label.setStyleSheet("color: red;")
+        elif net_balance > 0:
+            self.balance_label.setStyleSheet("color: green;")
+        else:
+            self.balance_label.setStyleSheet("")
